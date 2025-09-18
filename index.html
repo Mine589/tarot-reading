@@ -342,9 +342,15 @@
             if (show) {
                 loadingDiv.classList.remove('hidden');
                 drawCardBtn.disabled = true;
+                drawCardBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                infoSection.classList.add('hidden');
+                topicSelect.disabled = true;
             } else {
                 loadingDiv.classList.add('hidden');
                 drawCardBtn.disabled = false;
+                drawCardBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                infoSection.classList.remove('hidden');
+                topicSelect.disabled = false;
             }
         }
 
@@ -375,56 +381,63 @@
         // Event Listeners
         window.onload = async () => {
             if (Object.keys(firebaseConfig).length > 0) {
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
+                try {
+                    const app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    db = getFirestore(app);
 
-                showLoading(true);
+                    showLoading(true);
 
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                    } else {
-                        if (initialAuthToken) {
-                            try {
-                                await signInWithCustomToken(auth, initialAuthToken);
-                            } catch (error) {
-                                console.error("Error signing in with custom token:", error);
+                    onAuthStateChanged(auth, async (user) => {
+                        if (user) {
+                            userId = user.uid;
+                        } else {
+                            if (initialAuthToken) {
+                                try {
+                                    await signInWithCustomToken(auth, initialAuthToken);
+                                } catch (error) {
+                                    console.error("Error signing in with custom token:", error);
+                                    await signInAnonymously(auth);
+                                }
+                            } else {
                                 await signInAnonymously(auth);
                             }
-                        } else {
-                            await signInAnonymously(auth);
+                            userId = auth.currentUser.uid;
                         }
-                    }
 
-                    if (userId) {
-                        const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/tarot_data`, 'user_profile');
-                        onSnapshot(userDocRef, (docSnap) => {
-                            if (docSnap.exists()) {
-                                userProfile = docSnap.data();
-                            } else {
-                                setDoc(userDocRef, userProfile);
-                            }
-                            updateUI();
-                        });
-
-                        const historyColRef = collection(db, `artifacts/${appId}/users/${userId}/tarot_history`);
-                        onSnapshot(historyColRef, (snapshot) => {
-                            const historyData = [];
-                            snapshot.forEach(doc => {
-                                historyData.push(doc.data());
+                        if (userId) {
+                            const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/tarot_data`, 'user_profile');
+                            onSnapshot(userDocRef, (docSnap) => {
+                                if (docSnap.exists()) {
+                                    userProfile = docSnap.data();
+                                } else {
+                                    setDoc(userDocRef, userProfile);
+                                }
+                                updateUI();
                             });
-                            // Sort by timestamp descending
-                            historyData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-                            displayHistory(historyData);
-                            showLoading(false);
-                        });
 
-                    } else {
-                        console.error("User ID is not available.");
-                        showLoading(false);
-                    }
-                });
+                            const historyColRef = collection(db, `artifacts/${appId}/users/${userId}/tarot_history`);
+                            onSnapshot(historyColRef, (snapshot) => {
+                                const historyData = [];
+                                snapshot.forEach(doc => {
+                                    historyData.push(doc.data());
+                                });
+                                // Sort by timestamp descending
+                                historyData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                                displayHistory(historyData);
+                                showLoading(false);
+                            });
+
+                        } else {
+                            console.error("User ID is not available.");
+                            showLoading(false);
+                        }
+                    });
+                } catch (e) {
+                    console.error("Firebase Initialization Error: ", e);
+                    showMessageBox('error', 'ไม่สามารถเชื่อมต่อกับฐานข้อมูลได้ กรุณาลองใหม่อีกครั้งในภายหลัง');
+                    showLoading(false);
+                }
             } else {
                 console.error("Firebase config is missing.");
                 showLoading(false);
@@ -446,44 +459,50 @@
             
             showLoading(true);
 
-            // Logic to decrement question count
-            const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/tarot_data`, 'user_profile');
-            if (userProfile.freeQuestions > 0) {
-                userProfile.freeQuestions -= 1;
-            } else if (userProfile.paidQuestions > 0) {
-                userProfile.paidQuestions -= 1;
+            try {
+                // Logic to decrement question count
+                const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/tarot_data`, 'user_profile');
+                if (userProfile.freeQuestions > 0) {
+                    userProfile.freeQuestions -= 1;
+                } else if (userProfile.paidQuestions > 0) {
+                    userProfile.paidQuestions -= 1;
+                }
+                await setDoc(userDocRef, userProfile);
+                
+                // Randomly select a card
+                const randomIndex = Math.floor(Math.random() * tarotCards.length);
+                const selectedCard = tarotCards[randomIndex];
+                
+                const readingText = await fetchGeminiReading(selectedCard.name, topic);
+                
+                currentReading = {
+                    topic: topic,
+                    cardName: selectedCard.name,
+                    cardImage: selectedCard.image,
+                    meaning: readingText,
+                    timestamp: new Date()
+                };
+
+                // Update UI with results
+                cardDisplay.style.backgroundImage = `url('${selectedCard.image}')`;
+                cardName.textContent = selectedCard.name;
+                cardMeaning.textContent = readingText;
+
+                // Animate card draw
+                cardDisplay.classList.remove('rotate-0', 'scale-100');
+                cardDisplay.classList.add('rotate-3', 'scale-105');
+                setTimeout(() => {
+                    cardDisplay.classList.remove('rotate-3', 'scale-105');
+                    cardDisplay.classList.add('rotate-0', 'scale-100');
+                }, 300);
+
+                resultSection.classList.remove('hidden');
+                showLoading(false);
+            } catch (e) {
+                console.error("Error drawing card:", e);
+                showMessageBox('error', 'ไม่สามารถดูดวงได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง');
+                showLoading(false);
             }
-            await setDoc(userDocRef, userProfile);
-            
-            // Randomly select a card
-            const randomIndex = Math.floor(Math.random() * tarotCards.length);
-            const selectedCard = tarotCards[randomIndex];
-            
-            const readingText = await fetchGeminiReading(selectedCard.name, topic);
-            
-            currentReading = {
-                topic: topic,
-                cardName: selectedCard.name,
-                cardImage: selectedCard.image,
-                meaning: readingText,
-                timestamp: new Date()
-            };
-
-            // Update UI with results
-            cardDisplay.style.backgroundImage = `url('${selectedCard.image}')`;
-            cardName.textContent = selectedCard.name;
-            cardMeaning.textContent = readingText;
-
-            // Animate card draw
-            cardDisplay.classList.remove('rotate-0', 'scale-100');
-            cardDisplay.classList.add('rotate-3', 'scale-105');
-            setTimeout(() => {
-                cardDisplay.classList.remove('rotate-3', 'scale-105');
-                cardDisplay.classList.add('rotate-0', 'scale-100');
-            }, 300);
-
-            resultSection.classList.remove('hidden');
-            showLoading(false);
         });
 
         buyBtn.addEventListener('click', async () => {
@@ -505,13 +524,19 @@
                 return;
             }
             showLoading(true);
-            const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/tarot_data`, 'user_profile');
-            userProfile.paidQuestions += 3;
-            await setDoc(userDocRef, userProfile);
-            paymentBox.classList.add('hidden');
-            showLoading(false);
-            updateUI();
-            showMessageBox('success', 'การชำระเงินสำเร็จ! คุณได้รับ 3 คำถามเพิ่มแล้ว');
+            try {
+                const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/tarot_data`, 'user_profile');
+                userProfile.paidQuestions += 3;
+                await setDoc(userDocRef, userProfile);
+                paymentBox.classList.add('hidden');
+                showLoading(false);
+                updateUI();
+                showMessageBox('success', 'การชำระเงินสำเร็จ! คุณได้รับ 3 คำถามเพิ่มแล้ว');
+            } catch (e) {
+                console.error("Error confirming payment:", e);
+                showMessageBox('error', 'เกิดข้อผิดพลาดในการยืนยันการชำระเงิน');
+                showLoading(false);
+            }
         });
 
         saveReadingBtn.addEventListener('click', async () => {
@@ -538,7 +563,6 @@
             }
             showLoading(false);
         });
-
     </script>
 </body>
 </html>
