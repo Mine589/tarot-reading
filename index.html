@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ดูดวงไพ่ยิปซี</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #111827;
+            color: #E5E7EB;
+        }
+        .tarot-card {
+            background-size: cover;
+            background-position: center;
+            border: 2px solid #D1D5DB;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .tarot-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <!-- Main Container -->
+    <div class="bg-gray-800 p-8 rounded-2xl shadow-xl max-w-2xl w-full text-center">
+        <h1 class="text-4xl font-bold text-yellow-400 mb-2">ดูดวงไพ่ยิปซี</h1>
+        <p class="text-gray-400 mb-6">เลือกหัวข้อที่คุณต้องการทำนาย แล้วกดปุ่มเพื่อรับคำทำนายส่วนตัวของคุณ</p>
+        
+        <!-- Initial Tarot Card Image -->
+        <div class="mb-8 w-48 h-80 mx-auto rounded-xl tarot-card" style="background-image: url('https://upload.wikimedia.org/wikipedia/commons/e/e9/RWS_back.jpg');"></div>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="hidden flex flex-col items-center justify-center my-8">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-yellow-500"></div>
+            <p class="mt-4 text-yellow-500 font-medium">จงตั้งจิตอธิษฐาน ฝากคำถามไว้กับจักรวาล แล้วขอให้ไพ่เปิดเผยหนทางที่แท้จริง</p>
+        </div>
+
+        <!-- Question and Pricing Info -->
+        <div id="info-section" class="mb-6">
+            <p class="text-xl font-semibold mb-2" id="question-status"></p>
+            <p class="text-sm text-gray-400">ฟรี 1 คำถามแรกสำหรับทุกคน!</p>
+            <p class="text-sm text-gray-400">ทำนาย 3 คำถาม เพียง 19 บาท!</p>
+        </div>
+
+        <!-- Topic Selection -->
+        <div id="topic-section" class="mb-8">
+            <label for="topic-select" class="block text-xl font-medium mb-4 text-yellow-400">เลือกหัวข้อทำนาย</label>
+            <select id="topic-select" class="w-full p-3 rounded-xl bg-gray-700 text-gray-300 border-2 border-gray-600 focus:outline-none focus:border-yellow-500 transition">
+                <option value="" disabled selected>กรุณาเลือกหัวข้อ</option>
+                <option value="ความรัก">ความรัก</option>
+                <option value="การงาน">การงาน</option>
+                <option value="การเงิน">การเงิน</option>
+                <option value="สุขภาพ">สุขภาพ</option>
+            </select>
+        </div>
+        
+        <!-- Action Button -->
+        <button id="draw-card-btn" class="w-full py-4 px-6 bg-yellow-500 hover:bg-yellow-600 text-gray-900 text-xl font-bold rounded-xl shadow-lg transition transform hover:scale-105">
+            ดูดวง
+        </button>
+
+        <!-- Message Box for Buy Questions -->
+        <div id="buy-questions-box" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4">
+            <div class="bg-gray-800 p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center border-2 border-yellow-500">
+                <h3 class="text-2xl font-bold text-yellow-400 mb-4">คำถามฟรีหมดแล้ว</h3>
+                <p class="text-gray-300 mb-6">คุณสามารถซื้อแพ็กเกจ 3 คำถามในราคา 19 บาทเพื่อดูดวงต่อได้</p>
+                <button id="buy-btn" class="w-full py-3 px-6 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl transition transform hover:scale-105">
+                    ซื้อ 3 คำถาม (19 บาท)
+                </button>
+                <button id="close-buy-box-btn" class="mt-4 w-full py-3 px-6 bg-gray-600 hover:bg-gray-700 text-gray-200 font-bold rounded-xl transition">
+                    ปิด
+                </button>
+            </div>
+        </div>
+        
+        <!-- Message Box for Payment Simulation -->
+        <div id="payment-box" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4">
+            <div class="bg-gray-800 p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center border-2 border-green-500">
+                <h3 class="text-2xl font-bold text-green-400 mb-4">ช่องทางการชำระเงิน</h3>
+                <p class="text-gray-300 mb-6">กรุณาชำระเงินโดยสแกน QR Code หรือโอนเงิน</p>
+                <!-- Simulated QR Code -->
+                <div class="bg-white p-2 rounded-lg inline-block mb-4">
+                    <img src="https://placehold.co/150x150/000000/FFFFFF?text=QR+Code" alt="QR Code" class="w-32 h-32">
+                </div>
+                <p class="text-lg text-green-300 font-semibold mb-2">บัญชี: ดูดวงไพ่ยิปซี</p>
+                <p class="text-gray-400 text-sm">จำนวนเงิน: 19 บาท</p>
+                <button id="confirm-payment-btn" class="mt-6 w-full py-3 px-6 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold rounded-xl transition transform hover:scale-105">
+                    ยืนยันการชำระเงิน
+                </button>
+                <button id="cancel-payment-btn" class="mt-4 w-full py-3 px-6 bg-gray-600 hover:bg-gray-700 text-gray-200 font-bold rounded-xl transition">
+                    ยกเลิก
+                </button>
+            </div>
+        </div>
+
+        <!-- Reading Result Section -->
+        <div id="result-section" class="hidden mt-8 p-6 bg-gray-700 rounded-2xl border-2 border-gray-600 text-left">
+            <h2 class="text-2xl font-bold text-yellow-400 mb-4">ผลการทำนาย</h2>
+            <div id="card-display" class="w-48 h-80 mx-auto mb-6 rounded-xl tarot-card transform rotate-0 scale-100"></div>
+            <h3 id="card-name" class="text-xl font-semibold text-yellow-300 mb-2"></h3>
+            <p id="card-meaning" class="text-gray-300 leading-relaxed"></p>
+            <button id="save-reading-btn" class="mt-4 w-full py-3 px-6 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl transition transform hover:scale-105">
+                บันทึกคำทำนาย
+            </button>
+        </div>
+
+        <!-- History Section -->
+        <div class="mt-8">
+            <h2 class="text-2xl font-bold text-yellow-400 mb-4">ประวัติคำทำนาย</h2>
+            <div id="history-list" class="space-y-4">
+                <!-- History items will be dynamically added here -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Firestore debug logging
+        setLogLevel('debug');
+        
+        // Global variables for Firebase
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // API key for Gemini API
+        const apiKey = "";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+        // UI elements
+        const loadingDiv = document.getElementById('loading');
+        const drawCardBtn = document.getElementById('draw-card-btn');
+        const topicSelect = document.getElementById('topic-select');
+        const resultSection = document.getElementById('result-section');
+        const cardDisplay = document.getElementById('card-display');
+        const cardName = document.getElementById('card-name');
+        const cardMeaning = document.getElementById('card-meaning');
+        const questionStatus = document.getElementById('question-status');
+        const infoSection = document.getElementById('info-section');
+        const buyQuestionsBox = document.getElementById('buy-questions-box');
+        const buyBtn = document.getElementById('buy-btn');
+        const closeBuyBoxBtn = document.getElementById('close-buy-box-btn');
+        const paymentBox = document.getElementById('payment-box');
+        const confirmPaymentBtn = document.getElementById('confirm-payment-btn');
+        const cancelPaymentBtn = document.getElementById('cancel-payment-btn');
+        const saveReadingBtn = document.getElementById('save-reading-btn');
+        const historyList = document.getElementById('history-list');
+        
+        // State variables
+        let db, auth;
+        let userId = null;
+        let userProfile = { freeQuestions: 1, paidQuestions: 0 };
+        let currentReading = null;
+        
+        // Full Tarot Deck with image URLs from a public domain source (Rider-Waite-Smith)
+        const tarotCards = [
+            { name: "The Fool", image: "https://upload.wikimedia.org/wikipedia/commons/9/90/RWS_Tarot_00_Fool.jpg" },
+            { name: "The Magician", image: "https://upload.wikimedia.org/wikipedia/commons/d/de/RWS_Tarot_01_Magician.jpg" },
+            { name: "The High Priestess", image: "https://upload.wikimedia.org/wikipedia/commons/d/db/RWS_Tarot_02_High_Priestess.jpg" },
+            { name: "The Empress", image: "https://upload.wikimedia.org/wikipedia/commons/d/d2/RWS_Tarot_03_Empress.jpg" },
+            { name: "The Emperor", image: "https://upload.wikimedia.org/wikipedia/commons/c/c3/RWS_Tarot_04_Emperor.jpg" },
+            { name: "The Hierophant", image: "https://upload.wikimedia.org/wikipedia/commons/8/8d/RWS_Tarot_05_Hierophant.jpg" },
+            { name: "The Lovers", image: "https://upload.wikimedia.org/wikipedia/commons/f/f6/RWS_Tarot_06_Lovers.jpg" },
+            { name: "The Chariot", image: "https://upload.wikimedia.org/wikipedia/commons/3/36/RWS_Tarot_07_Chariot.jpg" },
+            { name: "Strength", image: "https://upload.wikimedia.org/wikipedia/commons/f/f5/RWS_Tarot_08_Strength.jpg" },
+            { name: "The Hermit", image: "https://upload.wikimedia.org/wikipedia/commons/4/4d/RWS_Tarot_09_Hermit.jpg" },
+            { name: "Wheel of Fortune", image: "https://upload.wikimedia.org/wikipedia/commons/3/36/RWS_Tarot_10_Wheel_of_Fortune.jpg" },
+            { name: "Justice", image: "https://upload.wikimedia.org/wikipedia/commons/e/e0/RWS_Tarot_11_Justice.jpg" },
+            { name: "The Hanged Man", image: "https://upload.wikimedia.org/wikipedia/commons/2/2b/RWS_Tarot_12_Hanged_Man.jpg" },
+            { name: "Death", image: "https://upload.wikimedia.org/wikipedia/commons/d/d7/RWS_Tarot_13_Death.jpg" },
+            { name: "Temperance", image: "https://upload.wikimedia.org/wikipedia/commons/f/f8/RWS_Tarot_14_Temperance.jpg" },
+            { name: "The Devil", image: "https://upload.wikimedia.org/wikipedia/commons/5/55/RWS_Tarot_15_Devil.jpg" },
+            { name: "The Tower", image: "https://upload.wikimedia.org/wikipedia/commons/f/f9/RWS_Tarot_16_Tower.jpg" },
+            { name: "The Star", image: "https://upload.wikimedia.org/wikipedia/commons/d/d1/RWS_Tarot_17_Star.jpg" },
+            { name: "The Moon", image: "https://upload.wikimedia.org/wikipedia/commons/7/7f/RWS_Tarot_18_Moon.jpg" },
+            { name: "The Sun", image: "https://upload.wikimedia.org/wikipedia/commons/d/d2/RWS_Tarot_19_Sun.jpg" },
+            { name: "Judgement", image: "https://upload.wikimedia.org/wikipedia/commons/9/91/RWS_Tarot_20_Judgement.jpg" },
+            { name: "The World", image: "https://upload.wikimedia.org/wikipedia/commons/f/ff/RWS_Tarot_21_World.jpg" },
+            { name: "Ace of Wands", image: "https://upload.wikimedia.org/wikipedia/commons/1/11/RWS_Tarot_01_Wands.jpg" },
+            { name: "Two of Wands", image: "https://upload.wikimedia.org/wikipedia/commons/0/0f/RWS_Tarot_02_Wands.jpg" },
+            { name: "Three of Wands", image: "https://upload.wikimedia.org/wikipedia/commons/f/ff/RWS_Tarot_03_Wands.jpg" },
+            { name: "Four of Wands", image: "https://upload.wikimedia.org/wikipedia/commons/a/a4/RWS_Tarot_04_Wands.jpg" },
+            { name: "Five of Wands", image: "https://upload.wikimedia.org/wikipedia/commons/9/9d/RWS_Tarot_05_Wands.jpg" },
+            { name: "Six of Wands", image: "https://upload.wikimedia.org/wikipedia/commons/4/4b/RWS_Tarot_06_Wands.jpg" },
+            { name: "Seven of Wands", image: "https://upload.wikimedia.org/wikipedia/commons/e/e8/RWS_Tarot_07_Wands.jpg" },
+            { name: "Eight of Wands", image: "https://upload.wikimedia.org/wikipedia/commons/6/6b/RWS_Tarot_08_Wands.jpg" },
+            { name: "Nine of Wands", image: "https://upload.wikimedia.org/wikipedia/commons/4/4a/RWS_Tarot_09_Wands.jpg" },
+            { name: "Ten of Wands", image: "https://upload.wikimedia.org/wikipedia/commons/0/0a/RWS_Tarot_10_Wands.jpg" },
+            { name: "Page of Wands", image: "https://upload.wikimedia.org/wikipedia/commons/e/e3/RWS_Tarot_11_Wands.jpg" },
+            { name: "Knight of Wands", image: "https://upload.wikimedia.org/wikipedia/commons/f/fd/RWS_Tarot_12_Wands.jpg" },
+            { name: "Queen of Wands", image: "https://upload.wikimedia.org/wikipedia/commons/4/4b/RWS_Tarot_13_Wands.jpg" },
+            { name: "King of Wands", image: "https://upload.wikimedia.org/wikipedia/commons/0/0d/RWS_Tarot_14_Wands.jpg" },
+            { name: "Ace of Cups", image: "https://upload.wikimedia.org/wikipedia/commons/3/36/RWS_Tarot_01_Cups.jpg" },
+            { name: "Two of Cups", image: "https://upload.wikimedia.org/wikipedia/commons/f/f8/RWS_Tarot_02_Cups.jpg" },
+            { name: "Three of Cups", image: "https://upload.wikimedia.org/wikipedia/commons/7/76/RWS_Tarot_03_Cups.jpg" },
+            { name: "Four of Cups", image: "https://upload.wikimedia.org/wikipedia/commons/3/35/RWS_Tarot_04_Cups.jpg" },
+            { name: "Five of Cups", image: "https://upload.wikimedia.org/wikipedia/commons/9/94/RWS_Tarot_05_Cups.jpg" },
+            { name: "Six of Cups", image: "https://upload.wikimedia.org/wikipedia/commons/b/b3/RWS_Tarot_06_Cups.jpg" },
+            { name: "Seven of Cups", image: "https://upload.wikimedia.org/wikipedia/commons/6/6a/RWS_Tarot_07_Cups.jpg" },
+            { name: "Eight of Cups", image: "https://upload.wikimedia.org/wikipedia/commons/c/c6/RWS_Tarot_08_Cups.jpg" },
+            { name: "Nine of Cups", image: "https://upload.wikimedia.org/wikipedia/commons/9/90/RWS_Tarot_09_Cups.jpg" },
+            { name: "Ten of Cups", image: "https://upload.wikimedia.org/wikipedia/commons/8/84/RWS_Tarot_10_Cups.jpg" },
+            { name: "Page of Cups", image: "https://upload.wikimedia.org/wikipedia/commons/c/ce/RWS_Tarot_11_Cups.jpg" },
+            { name: "Knight of Cups", image: "https://upload.wikimedia.org/wikipedia/commons/f/f6/RWS_Tarot_12_Cups.jpg" },
+            { name: "Queen of Cups", image: "https://upload.wikimedia.org/wikipedia/commons/1/1a/RWS_Tarot_13_Cups.jpg" },
+            { name: "King of Cups", image: "https://upload.wikimedia.org/wikipedia/commons/8/87/RWS_Tarot_14_Cups.jpg" },
+            { name: "Ace of Swords", image: "https://upload.wikimedia.org/wikipedia/commons/0/07/RWS_Tarot_01_Swords.jpg" },
+            { name: "Two of Swords", image: "https://upload.wikimedia.org/wikipedia/commons/d/d4/RWS_Tarot_02_Swords.jpg" },
+            { name: "Three of Swords", image: "https://upload.wikimedia.org/wikipedia/commons/e/e4/RWS_Tarot_03_Swords.jpg" },
+            { name: "Four of Swords", image: "https://upload.wikimedia.org/wikipedia/commons/9/91/RWS_Tarot_04_Swords.jpg" },
+            { name: "Five of Swords", image: "https://upload.wikimedia.org/wikipedia/commons/2/23/RWS_Tarot_05_Swords.jpg" },
+            { name: "Six of Swords", image: "https://upload.wikimedia.org/wikipedia/commons/a/a6/RWS_Tarot_06_Swords.jpg" },
+            { name: "Seven of Swords", image: "https://upload.wikimedia.org/wikipedia/commons/2/29/RWS_Tarot_07_Swords.jpg" },
+            { name: "Eight of Swords", image: "https://upload.wikimedia.org/wikipedia/commons/e/e0/RWS_Tarot_08_Swords.jpg" },
+            { name: "Nine of Swords", image: "https://upload.wikimedia.org/wikipedia/commons/2/29/RWS_Tarot_09_Swords.jpg" },
+            { name: "Ten of Swords", image: "https://upload.wikimedia.org/wikipedia/commons/b/b3/RWS_Tarot_10_Swords.jpg" },
+            { name: "Page of Swords", image: "https://upload.wikimedia.org/wikipedia/commons/9/9a/RWS_Tarot_11_Swords.jpg" },
+            { name: "Knight of Swords", image: "https://upload.wikimedia.org/wikipedia/commons/3/33/RWS_Tarot_12_Swords.jpg" },
+            { name: "Queen of Swords", image: "https://upload.wikimedia.org/wikipedia/commons/d/d4/RWS_Tarot_13_Swords.jpg" },
+            { name: "King of Swords", image: "https://upload.wikimedia.org/wikipedia/commons/b/b3/RWS_Tarot_14_Swords.jpg" },
+            { name: "Ace of Pentacles", image: "https://upload.wikimedia.org/wikipedia/commons/f/fd/RWS_Tarot_01_Pentacles.jpg" },
+            { name: "Two of Pentacles", image: "https://upload.wikimedia.org/wikipedia/commons/9/9f/RWS_Tarot_02_Pentacles.jpg" },
+            { name: "Three of Pentacles", image: "https://upload.wikimedia.org/wikipedia/commons/9/9b/RWS_Tarot_03_Pentacles.jpg" },
+            { name: "Four of Pentacles", image: "https://upload.wikimedia.org/wikipedia/commons/4/4f/RWS_Tarot_04_Pentacles.jpg" },
+            { name: "Five of Pentacles", image: "https://upload.wikimedia.org/wikipedia/commons/f/fe/RWS_Tarot_05_Pentacles.jpg" },
+            { name: "Six of Pentacles", image: "https://upload.wikimedia.org/wikipedia/commons/a/a2/RWS_Tarot_06_Pentacles.jpg" },
+            { name: "Seven of Pentacles", image: "https://upload.wikimedia.org/wikipedia/commons/6/6c/RWS_Tarot_07_Pentacles.jpg" },
+            { name: "Eight of Pentacles", image: "https://upload.wikimedia.org/wikipedia/commons/5/52/RWS_Tarot_08_Pentacles.jpg" },
+            { name: "Nine of Pentacles", image: "https://upload.wikimedia.org/wikipedia/commons/f/f0/RWS_Tarot_09_Pentacles.jpg" },
+            { name: "Ten of Pentacles", image: "https://upload.wikimedia.org/wikipedia/commons/c/c5/RWS_Tarot_10_Pentacles.jpg" },
+            { name: "Page of Pentacles", image: "https://upload.wikimedia.org/wikipedia/commons/a/ad/RWS_Tarot_11_Pentacles.jpg" },
+            { name: "Knight of Pentacles", image: "https://upload.wikimedia.org/wikipedia/commons/d/d2/RWS_Tarot_12_Pentacles.jpg" },
+            { name: "Queen of Pentacles", image: "https://upload.wikimedia.org/wikipedia/commons/b/b6/RWS_Tarot_13_Pentacles.jpg" },
+            { name: "King of Pentacles", image: "https://upload.wikimedia.org/wikipedia/commons/1/1c/RWS_Tarot_14_Pentacles.jpg" }
+        ];
+
+        // Functions
+        async function fetchGeminiReading(cardName, topic) {
+            const systemPrompt = `คุณคือผู้ทำนายไพ่ยิปซีที่เชี่ยวชาญ กรุณาทำนายผลจากไพ่ ${cardName} ในหัวข้อ ${topic} โดยให้คำทำนายที่ละเอียดและมีความหมายเชิงลึก`;
+            const userQuery = `ทำนายไพ่ ${cardName} ในหัวข้อ ${topic} โดยให้คำทำนายละเอียด ไม่ใช่แค่ประโยคเดียว`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                }
+            };
+
+            let retries = 0;
+            const maxRetries = 5;
+            const initialDelay = 1000; // 1 second
+
+            while (retries < maxRetries) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`API call failed with status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (text) {
+                        return text;
+                    } else {
+                        throw new Error("Invalid response from Gemini API.");
+                    }
+                } catch (error) {
+                    console.error("Error fetching Gemini reading:", error);
+                    retries++;
+                    if (retries < maxRetries) {
+                        const delay = initialDelay * Math.pow(2, retries - 1);
+                        await new Promise(res => setTimeout(res, delay));
+                    }
+                }
+            }
+            return "ไม่สามารถดึงคำทำนายได้ในขณะนี้ กรุณาลองใหม่อีกครั้งในภายหลัง";
+        }
+
+        function updateUI() {
+            const totalQuestions = userProfile.freeQuestions + userProfile.paidQuestions;
+            if (totalQuestions > 0) {
+                questionStatus.textContent = `คุณเหลือคำถามอีก ${totalQuestions} คำถาม`;
+                drawCardBtn.textContent = 'ดูดวง';
+                drawCardBtn.disabled = false;
+            } else {
+                questionStatus.textContent = 'คำถามฟรีหมดแล้ว';
+                drawCardBtn.textContent = 'คุณไม่มีคำถามเหลืออยู่';
+                drawCardBtn.disabled = true;
+            }
+        }
+
+        function showMessageBox(type, message) {
+            const msgBox = document.createElement('div');
+            msgBox.className = 'fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center p-4';
+            let colorClass, headingText;
+
+            if (type === 'error') {
+                colorClass = 'bg-red-800 border-red-500';
+                headingText = 'ข้อผิดพลาด';
+            } else if (type === 'success') {
+                colorClass = 'bg-green-800 border-green-500';
+                headingText = 'สำเร็จ';
+            } else if (type === 'info') {
+                colorClass = 'bg-blue-800 border-blue-500';
+                headingText = 'แจ้งเตือน';
+            }
+
+            msgBox.innerHTML = `
+                <div class="p-6 rounded-xl shadow-2xl max-w-xs w-full text-center border-2 ${colorClass}">
+                    <h3 class="text-2xl font-bold text-white mb-4">${headingText}</h3>
+                    <p class="text-white mb-6">${message}</p>
+                    <button class="w-full py-3 px-6 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-xl transition close-btn">ปิด</button>
+                </div>
+            `;
+            document.body.appendChild(msgBox);
+            msgBox.querySelector('.close-btn').addEventListener('click', () => {
+                msgBox.remove();
+            });
+        }
+
+        function showLoading(show) {
+            if (show) {
+                loadingDiv.classList.remove('hidden');
+                drawCardBtn.disabled = true;
+            } else {
+                loadingDiv.classList.add('hidden');
+                drawCardBtn.disabled = false;
+            }
+        }
+
+        function displayHistory(history) {
+            historyList.innerHTML = '';
+            if (history.length === 0) {
+                historyList.innerHTML = `<p class="text-center text-gray-500">ยังไม่มีประวัติการทำนาย</p>`;
+                return;
+            }
+
+            history.forEach(item => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'p-4 bg-gray-700 rounded-xl flex items-start space-x-4 border-2 border-gray-600';
+                const date = item.timestamp ? new Date(item.timestamp.seconds * 1000).toLocaleString('th-TH') : 'ไม่ระบุ';
+                historyItem.innerHTML = `
+                    <div class="w-24 h-40 flex-shrink-0 bg-cover bg-center rounded-xl" style="background-image: url('${item.cardImage}');"></div>
+                    <div class="flex-grow">
+                        <p class="text-lg font-semibold text-yellow-300">หัวข้อ: ${item.topic}</p>
+                        <p class="text-md text-gray-300">ไพ่: ${item.cardName}</p>
+                        <p class="text-sm text-gray-400 mt-1">${item.meaning.substring(0, 100)}...</p>
+                        <p class="text-xs text-gray-500 mt-2">วันที่: ${date}</p>
+                    </div>
+                `;
+                historyList.appendChild(historyItem);
+            });
+        }
+
+        // Event Listeners
+        window.onload = async () => {
+            if (Object.keys(firebaseConfig).length > 0) {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                showLoading(true);
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                    } else {
+                        if (initialAuthToken) {
+                            try {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                            } catch (error) {
+                                console.error("Error signing in with custom token:", error);
+                                await signInAnonymously(auth);
+                            }
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    }
+
+                    if (userId) {
+                        const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/tarot_data`, 'user_profile');
+                        onSnapshot(userDocRef, (docSnap) => {
+                            if (docSnap.exists()) {
+                                userProfile = docSnap.data();
+                            } else {
+                                setDoc(userDocRef, userProfile);
+                            }
+                            updateUI();
+                        });
+
+                        const historyColRef = collection(db, `artifacts/${appId}/users/${userId}/tarot_history`);
+                        onSnapshot(historyColRef, (snapshot) => {
+                            const historyData = [];
+                            snapshot.forEach(doc => {
+                                historyData.push(doc.data());
+                            });
+                            // Sort by timestamp descending
+                            historyData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                            displayHistory(historyData);
+                            showLoading(false);
+                        });
+
+                    } else {
+                        console.error("User ID is not available.");
+                        showLoading(false);
+                    }
+                });
+            } else {
+                console.error("Firebase config is missing.");
+                showLoading(false);
+            }
+        };
+
+        drawCardBtn.addEventListener('click', async () => {
+            const topic = topicSelect.value;
+            if (!topic) {
+                showMessageBox('error', 'กรุณาเลือกหัวข้อการทำนายก่อนกดปุ่ม');
+                return;
+            }
+
+            const totalQuestions = userProfile.freeQuestions + userProfile.paidQuestions;
+            if (totalQuestions <= 0) {
+                buyQuestionsBox.classList.remove('hidden');
+                return;
+            }
+            
+            showLoading(true);
+
+            // Logic to decrement question count
+            const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/tarot_data`, 'user_profile');
+            if (userProfile.freeQuestions > 0) {
+                userProfile.freeQuestions -= 1;
+            } else if (userProfile.paidQuestions > 0) {
+                userProfile.paidQuestions -= 1;
+            }
+            await setDoc(userDocRef, userProfile);
+            
+            // Randomly select a card
+            const randomIndex = Math.floor(Math.random() * tarotCards.length);
+            const selectedCard = tarotCards[randomIndex];
+            
+            const readingText = await fetchGeminiReading(selectedCard.name, topic);
+            
+            currentReading = {
+                topic: topic,
+                cardName: selectedCard.name,
+                cardImage: selectedCard.image,
+                meaning: readingText,
+                timestamp: new Date()
+            };
+
+            // Update UI with results
+            cardDisplay.style.backgroundImage = `url('${selectedCard.image}')`;
+            cardName.textContent = selectedCard.name;
+            cardMeaning.textContent = readingText;
+
+            // Animate card draw
+            cardDisplay.classList.remove('rotate-0', 'scale-100');
+            cardDisplay.classList.add('rotate-3', 'scale-105');
+            setTimeout(() => {
+                cardDisplay.classList.remove('rotate-3', 'scale-105');
+                cardDisplay.classList.add('rotate-0', 'scale-100');
+            }, 300);
+
+            resultSection.classList.remove('hidden');
+            showLoading(false);
+        });
+
+        buyBtn.addEventListener('click', async () => {
+            buyQuestionsBox.classList.add('hidden');
+            paymentBox.classList.remove('hidden');
+        });
+
+        closeBuyBoxBtn.addEventListener('click', () => {
+            buyQuestionsBox.classList.add('hidden');
+        });
+        
+        cancelPaymentBtn.addEventListener('click', () => {
+            paymentBox.classList.add('hidden');
+        });
+        
+        confirmPaymentBtn.addEventListener('click', async () => {
+            if (!userId) {
+                showMessageBox('error', 'ไม่สามารถดำเนินการได้ในขณะนี้ กรุณารีเฟรชหน้าเว็บ');
+                return;
+            }
+            showLoading(true);
+            const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/tarot_data`, 'user_profile');
+            userProfile.paidQuestions += 3;
+            await setDoc(userDocRef, userProfile);
+            paymentBox.classList.add('hidden');
+            showLoading(false);
+            updateUI();
+            showMessageBox('success', 'การชำระเงินสำเร็จ! คุณได้รับ 3 คำถามเพิ่มแล้ว');
+        });
+
+        saveReadingBtn.addEventListener('click', async () => {
+            if (!userId) {
+                showMessageBox('error', 'ไม่สามารถบันทึกได้ กรุณาเข้าสู่ระบบใหม่');
+                return;
+            }
+            if (!currentReading) {
+                showMessageBox('error', 'ไม่มีคำทำนายให้บันทึก');
+                return;
+            }
+            showLoading(true);
+            try {
+                const historyColRef = collection(db, `artifacts/${appId}/users/${userId}/tarot_history`);
+                await addDoc(historyColRef, {
+                    ...currentReading,
+                    timestamp: serverTimestamp()
+                });
+                showMessageBox('success', 'บันทึกคำทำนายเรียบร้อยแล้ว');
+                currentReading = null; // Clear after saving
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                showMessageBox('error', 'เกิดข้อผิดพลาดในการบันทึกคำทำนาย');
+            }
+            showLoading(false);
+        });
+
+    </script>
+</body>
+</html>
